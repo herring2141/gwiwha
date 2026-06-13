@@ -11,7 +11,7 @@
 const K = {
   bank: 'nq_bank', meta: 'nq_meta', wrong: 'nq_wrong',
   stats: 'nq_stats', history: 'nq_history', drafts: 'nq_drafts', lang: 'nq_lang',
-  mockSave: 'nq_mocksave',
+  mockSave: 'nq_mocksave', practiceSave: 'nq_practicesave',
 };
 
 /* ---------- 최소 내장 예비 문제 (네트워크/캐시 모두 없을 때만) ---------- */
@@ -65,6 +65,7 @@ const I18N = {
     'model.show': '📝 모범답안 보기', 'model.hide': '📝 모범답안 숨기기', 'review.model': '모범답안',
     'resume.banner': '📌 진행 중인 모의고사 이어서 풀기 ({0}/{1})', 'exam.resume': '이어서 풀기 ({0}/{1})',
     'confirm.discardMock': '진행 중인 모의고사 기록이 사라집니다. 새로 시작할까요?', 'toast.resumed': '이어서 풉니다.',
+    'resume.practice': '📌 이어서 풀기 — {0} ({1}/{2})', 'practice.allLabel': '전체',
     'confirm.submit': '제출하고 채점할까요?', 'confirm.clearWrong': '오답노트를 모두 비울까요?', 'confirm.resetStats': '학습 통계와 기록을 모두 초기화할까요?',
     'toast.clearedWrong': '오답노트를 비웠습니다.', 'toast.resetStats': '초기화했습니다.', 'toast.noQ': '풀 수 있는 문제가 없습니다. 동기화를 먼저 해주세요.', 'toast.timeUp': '시간 종료! 자동 채점합니다.',
     'count.char': '{0}자',
@@ -107,6 +108,7 @@ const I18N = {
     'model.show': '📝 查看范文', 'model.hide': '📝 隐藏范文', 'review.model': '范文',
     'resume.banner': '📌 继续上次的模拟考试 ({0}/{1})', 'exam.resume': '继续作答 ({0}/{1})',
     'confirm.discardMock': '正在进行的模拟考试记录将被删除。要重新开始吗？', 'toast.resumed': '继续作答。',
+    'resume.practice': '📌 继续上次练习 — {0} ({1}/{2})', 'practice.allLabel': '全部',
     'confirm.submit': '要提交并评分吗？', 'confirm.clearWrong': '要清空错题本吗？', 'confirm.resetStats': '要重置所有学习统计和记录吗？',
     'toast.clearedWrong': '已清空错题本。', 'toast.resetStats': '已重置。', 'toast.noQ': '没有可作答的题目。请先同步。', 'toast.timeUp': '时间到！自动评分。',
     'count.char': '{0}字',
@@ -252,6 +254,12 @@ function renderHome() {
    영역별 연습
    ===================================================================== */
 function renderCategories() {
+  // 진행 중인 연습 이어풀기 배너
+  const s = getPracticeSave();
+  const rb = $('practiceResume');
+  if (s) { const lab = s.label ? catName(s.label) : t('practice.allLabel'); rb.textContent = t('resume.practice', lab, s.i + 1, s.list.length); rb.classList.remove('hidden'); }
+  else rb.classList.add('hidden');
+
   const cats = {};
   mcOnly().forEach((q) => { cats[q.category] = (cats[q.category] || 0) + 1; });
   const wrap = $('categoryList');
@@ -299,6 +307,21 @@ function clearMockSave() { try { localStorage.removeItem(K.mockSave); } catch {}
 function saveMockProgress() {
   if (!quiz || quiz.mode !== 'mock') return;
   save(K.mockSave, { list: quiz.list, i: quiz.i, answers: quiz.answers, text: quiz.text, timeLeft: quiz.timeLeft, savedAt: new Date().toISOString() });
+}
+
+/* ---------- 영역별 연습 중간 저장 / 이어풀기 ---------- */
+function getPracticeSave() { const s = ls(K.practiceSave, null); return (s && Array.isArray(s.list) && s.list.length) ? s : null; }
+function clearPracticeSave() { try { localStorage.removeItem(K.practiceSave); } catch {} }
+function savePracticeProgress() {
+  if (!quiz || quiz.mode !== 'practice') return;
+  const cats = new Set(quiz.list.map((q) => q.category));
+  save(K.practiceSave, { list: quiz.list, i: quiz.i, answers: quiz.answers, label: cats.size === 1 ? [...cats][0] : null, savedAt: new Date().toISOString() });
+}
+function resumePractice() {
+  const s = getPracticeSave();
+  if (!s) { renderCategories(); return; }
+  startQuiz(s.list, 'practice', { i: s.i, answers: s.answers });
+  toast(t('toast.resumed'));
 }
 
 function showExamIntro() {
@@ -418,6 +441,7 @@ function renderQuestion() {
   }
 
   if (quiz.mode === 'mock') saveMockProgress(); // 답 선택·이동 시마다 중간 저장
+  else if (quiz.mode === 'practice') savePracticeProgress();
 }
 
 function onChoose(idx) {
@@ -435,6 +459,7 @@ function nextQuestion() {
 function prevQuestion() { if (quiz.i > 0) { quiz.i--; renderQuestion(); } }
 
 function finishPractice() {
+  clearPracticeSave(); // 끝까지 풀면 중간 저장 삭제
   let correct = 0;
   quiz.list.forEach((q, i) => { if (quiz.answers[i] === q.answer) correct++; });
   renderResult(quiz.list, quiz.answers, correct, { isMock: false, totalMc: quiz.list.length });
@@ -623,6 +648,7 @@ function wireEvents() {
   $('examStartBtn').addEventListener('click', startMockExam);
   $('resumeBanner').addEventListener('click', resumeMock);
   $('examResumeBtn').addEventListener('click', resumeMock);
+  $('practiceResume').addEventListener('click', resumePractice);
   $('writeInput').addEventListener('input', onWriteInput);
 
   $('writingSeg').querySelectorAll('.seg__btn').forEach((b) => { b.addEventListener('click', () => { writingType = b.dataset.wt; syncSeg(); renderWriting(); }); });

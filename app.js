@@ -61,6 +61,7 @@ const I18N = {
     'stats.total': '총 푼 문제', 'stats.acc': '전체 정답률', 'stats.noHistory': '아직 모의고사 기록이 없습니다.',
     'wrong.empty': '틀린 문제가 없습니다. 잘하고 있어요! 👏', 'writing.empty': '해당 유형의 문제가 없습니다.',
     'guide.show': '💡 도움말 보기', 'guide.hide': '💡 도움말 숨기기', 'writing.draftPh': '여기에 답을 작성해 보세요 (200자 이내)',
+    'model.show': '📝 모범답안 보기', 'model.hide': '📝 모범답안 숨기기', 'review.model': '모범답안',
     'confirm.submit': '제출하고 채점할까요?', 'confirm.clearWrong': '오답노트를 모두 비울까요?', 'confirm.resetStats': '학습 통계와 기록을 모두 초기화할까요?',
     'toast.clearedWrong': '오답노트를 비웠습니다.', 'toast.resetStats': '초기화했습니다.', 'toast.noQ': '풀 수 있는 문제가 없습니다. 동기화를 먼저 해주세요.', 'toast.timeUp': '시간 종료! 자동 채점합니다.',
     'count.char': '{0}자',
@@ -100,6 +101,7 @@ const I18N = {
     'stats.total': '已做题数', 'stats.acc': '总正确率', 'stats.noHistory': '还没有模拟考试记录。',
     'wrong.empty': '没有错题，做得很好！👏', 'writing.empty': '没有该类型的题目。',
     'guide.show': '💡 查看提示', 'guide.hide': '💡 隐藏提示', 'writing.draftPh': '请在此作答（200字以内）',
+    'model.show': '📝 查看范文', 'model.hide': '📝 隐藏范文', 'review.model': '范文',
     'confirm.submit': '要提交并评分吗？', 'confirm.clearWrong': '要清空错题本吗？', 'confirm.resetStats': '要重置所有学习统计和记录吗？',
     'toast.clearedWrong': '已清空错题本。', 'toast.resetStats': '已重置。', 'toast.noQ': '没有可作答的题目。请先同步。', 'toast.timeUp': '时间到！自动评分。',
     'count.char': '{0}字',
@@ -444,7 +446,8 @@ function reviewItem(q, chosen, writeText) {
     const empty = isOral ? t('review.emptyOral') : t('review.emptyWrite');
     el.innerHTML = `<div class="review-item__q">${isOral ? '🗣️' : '✍️'} ${bi(q.q, q.q_zh)}</div>
       <div class="review-item__write ${ans ? '' : 'empty-ans'}">${ans || empty}</div>
-      ${q.guide ? `<div class="review-item__exp">💡 ${bi(q.guide, q.guide_zh)}</div>` : ''}`;
+      ${q.guide ? `<div class="review-item__exp">💡 ${bi(q.guide, q.guide_zh)}</div>` : ''}
+      ${q.model ? `<div class="review-item__model"><b>${t('review.model')}</b><br>${bi(q.model, q.model_zh)}</div>` : ''}`;
     return el;
   }
   let opts = '';
@@ -491,7 +494,9 @@ function renderWriting() {
       ${isWriting ? `<textarea data-id="${q.id}" placeholder="${t('writing.draftPh')}">${drafts[q.id] || ''}</textarea>
         <div class="writing-card__meta"><span class="writing-card__count">0${LANG === 'zh' ? '字' : '자'}</span></div>` : ''}
       <button class="writing-card__guide-toggle">${t('guide.show')}</button>
-      <div class="writing-card__guide hidden">${bi(q.guide || '', q.guide_zh)}</div>`;
+      <div class="writing-card__guide hidden">${bi(q.guide || '', q.guide_zh)}</div>
+      ${q.model ? `<button class="writing-card__model-toggle">${t('model.show')}</button>
+      <div class="writing-card__model hidden">${bi(q.model, q.model_zh)}</div>` : ''}`;
     if (isWriting) {
       const ta = card.querySelector('textarea'); const cnt = card.querySelector('.writing-card__count');
       const upd = () => { const n = ta.value.length; cnt.textContent = t('count.char', n); cnt.classList.toggle('over', n > 200); };
@@ -500,6 +505,11 @@ function renderWriting() {
     }
     const tg = card.querySelector('.writing-card__guide-toggle'); const gd = card.querySelector('.writing-card__guide');
     tg.addEventListener('click', () => { gd.classList.toggle('hidden'); tg.textContent = gd.classList.contains('hidden') ? t('guide.show') : t('guide.hide'); });
+    const mtg = card.querySelector('.writing-card__model-toggle');
+    if (mtg) {
+      const md = card.querySelector('.writing-card__model');
+      mtg.addEventListener('click', () => { md.classList.toggle('hidden'); mtg.textContent = md.classList.contains('hidden') ? t('model.show') : t('model.hide'); });
+    }
     wrap.appendChild(card);
   });
 }

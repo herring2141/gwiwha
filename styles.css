@@ -198,6 +198,10 @@ html, body {
 .writing-card__count.over { color: var(--red); font-weight: 700; }
 .writing-card__guide { margin-top: 12px; font-size: .9rem; color: var(--gray); background: var(--blue-soft); border-radius: 10px; padding: 12px; }
 .writing-card__guide-toggle { background: none; border: 0; color: var(--blue); font-weight: 700; cursor: pointer; padding: 0; font-size: .9rem; }
+.writing-card__model-toggle { display: block; margin-top: 10px; background: none; border: 0; color: var(--green); font-weight: 700; cursor: pointer; padding: 0; font-size: .9rem; }
+.writing-card__model { margin-top: 8px; font-size: .95rem; line-height: 1.75; color: var(--ink); background: var(--green-soft); border-left: 3px solid var(--green); border-radius: 10px; padding: 12px 14px; }
+.review-item__model { margin-top: 8px; font-size: .92rem; line-height: 1.7; background: var(--green-soft); border-left: 3px solid var(--green); border-radius: 10px; padding: 10px 12px; }
+.writing-card__model .zh, .review-item__model .zh { color: #3f6f50; }
 
 /* ===== 통계 ===== */
 .stats-box { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }

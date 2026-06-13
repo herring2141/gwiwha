@@ -1,8 +1,8 @@
-/* 서비스워커 — 오프라인 지원 + 자동 업데이트
-   - 정적 파일: stale-while-revalidate (캐시 즉시 표시 + 백그라운드에서 최신본 갱신)
-     → 앱을 새로 배포하면 다음번 실행 때 자동으로 최신 화면이 적용됩니다.
-   - questions.json: 네트워크 우선(항상 최신 문제), 오프라인이면 캐시. */
-const CACHE = 'gwiwha-v2';
+/* 서비스워커 — 항상 최신 + 오프라인 지원
+   - network-first: 인터넷이 되면 항상 최신 파일을 받고(앱·문제 모두), 캐시에도 저장.
+   - 오프라인이면 마지막으로 저장된 캐시로 동작.
+   - 캐시 버전(CACHE)을 올리면 옛 캐시가 정리되고 새 서비스워커가 즉시 적용됩니다. */
+const CACHE = 'gwiwha-v3';
 const CORE = [
   './',
   './index.html',
@@ -36,29 +36,19 @@ self.addEventListener('fetch', (e) => {
   const url = new URL(req.url);
   if (url.origin !== location.origin) return;
 
-  // 문제 파일: 네트워크 우선(최신), 실패하면 캐시
-  if (url.pathname.endsWith('questions.json')) {
-    e.respondWith(
-      fetch(req)
-        .then((res) => {
-          const copy = res.clone();
-          caches.open(CACHE).then((c) => c.put('./questions.json', copy));
-          return res;
-        })
-        .catch(() => caches.match('./questions.json'))
-    );
-    return;
-  }
+  const isQuestions = url.pathname.endsWith('questions.json');
 
-  // 그 외 정적 파일: stale-while-revalidate
+  // 네트워크 우선: 항상 최신을 받아오고 캐시 갱신. 실패(오프라인) 시 캐시로.
   e.respondWith(
-    caches.open(CACHE).then((cache) =>
-      cache.match(req).then((cached) => {
-        const network = fetch(req)
-          .then((res) => { cache.put(req, res.clone()); return res; })
-          .catch(() => cached || (req.mode === 'navigate' ? cache.match('./index.html') : undefined));
-        return cached || network;
+    fetch(req)
+      .then((res) => {
+        const copy = res.clone();
+        caches.open(CACHE).then((c) => c.put(isQuestions ? './questions.json' : req, copy));
+        return res;
       })
-    )
+      .catch(() => {
+        if (isQuestions) return caches.match('./questions.json');
+        return caches.match(req).then((c) => c || (req.mode === 'navigate' ? caches.match('./index.html') : undefined));
+      })
   );
 });

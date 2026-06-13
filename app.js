@@ -128,6 +128,7 @@ let quiz = null;
 let writingType = 'writing';
 let currentView = 'home';
 let lastResult = null;
+let swReg = null;
 
 /* ---------- 유틸 ---------- */
 const $ = (id) => document.getElementById(id);
@@ -145,7 +146,12 @@ const byType = (ty) => BANK.filter((q) => q.type === ty);
    ===================================================================== */
 function init() {
   if ('serviceWorker' in navigator && location.protocol.startsWith('http')) {
-    navigator.serviceWorker.register('sw.js').catch(() => {});
+    const hadController = !!navigator.serviceWorker.controller;
+    navigator.serviceWorker.addEventListener('controllerchange', () => {
+      // 새 버전 서비스워커가 제어를 넘겨받으면 한 번만 자동 새로고침 → 항상 최신 앱
+      if (hadController && !window.__nqReloaded) { window.__nqReloaded = true; location.reload(); }
+    });
+    navigator.serviceWorker.register('sw.js').then((reg) => { swReg = reg; }).catch(() => {});
   }
   LANG = ls(K.lang, 'ko');
   loadBankFromStorageOrFallback();
@@ -192,6 +198,7 @@ function refreshView() {
 async function sync({ silent = false } = {}) {
   const btn = $('syncBtn');
   btn.classList.add('is-syncing');
+  if (swReg) { try { swReg.update(); } catch (e) {} } // 동기화 시 앱(서비스워커) 업데이트도 점검
   if (!silent) toast(t('toast.syncing'));
   try {
     const res = await fetch('questions.json?t=' + Date.now(), { cache: 'no-store' });

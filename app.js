@@ -11,7 +11,7 @@
 const K = {
   bank: 'nq_bank', meta: 'nq_meta', wrong: 'nq_wrong',
   stats: 'nq_stats', history: 'nq_history', drafts: 'nq_drafts', lang: 'nq_lang',
-  mockSave: 'nq_mocksave', practiceSave: 'nq_practicesave',
+  mockSave: 'nq_mocksave', practiceSave: 'nq_practicesave', exam: 'nq_exam',
 };
 
 /* ---------- 최소 내장 예비 문제 (네트워크/캐시 모두 없을 때만) ---------- */
@@ -25,7 +25,11 @@ const FALLBACK = {
 
 /* ---------- 다국어 사전 ---------- */
 let LANG = 'ko';
-const CAT_ZH = { '한국어': '韩国语', '사회': '社会', '문화': '文化', '정치': '政治', '경제': '经济', '법': '法律', '역사': '历史', '지리': '地理', '작문': '写作', '구술': '口试' };
+const CAT_ZH = {
+  '한국어': '韩国语', '사회': '社会', '문화': '文化', '정치': '政治', '경제': '经济', '법': '法律', '역사': '历史', '지리': '地理', '작문': '写作', '구술': '口试',
+  /* 사전평가 전용 영역 */
+  '어휘': '词汇', '문법': '语法', '읽기·이해': '阅读理解', '대화': '对话', '한국문화': '韩国文化', '한국사회': '韩国社会',
+};
 const I18N = {
   ko: {
     'app.title': '귀화시험 연습', 'app.sync': '동기화',
@@ -58,6 +62,9 @@ const I18N = {
     'write.phWrite': '여기에 답안을 작성하세요 (200자 이내)', 'write.phOral': '소리내어 답해 보세요. (핵심을 메모해 두어도 됩니다 — 선택)',
     'result.frac': '객관식 {0}문항 중 {1}문항 정답', 'result.fracMore': ' · 작문·구술은 아래에서 직접 확인',
     'result.pass': '합격선(60점) 통과 🎉', 'result.fail': '합격선(60점)까지 조금 더!', 'result.practice': '연습 모드 결과입니다.',
+    'result.estLevel': '예상 배정 단계: {0}',
+    'result.levelDisclaimer': '※ 이 점수는 실제 배정 점수가 아니라 <b>객관식 실력 기준 예상치</b>입니다. 실제 사전평가는 객관식(75점)+작문(2문)+구술(25점)=100점이며, 작문·구술은 사람이 채점합니다. 또한 <b>구술이 3점 미만이면 0단계</b>로 배정됩니다. 정확한 단계는 시험 당일 점수로 정해집니다.',
+    'track.nat': '🇰🇷 귀화 종합평가', 'track.pre': '📊 사회통합 사전평가',
     'review.unanswered': '선택 안 함', 'review.emptyWrite': '작성한 답안이 없습니다.', 'review.emptyOral': '메모한 내용이 없습니다.',
     'stats.total': '총 푼 문제', 'stats.acc': '전체 정답률', 'stats.noHistory': '아직 모의고사 기록이 없습니다.',
     'wrong.empty': '틀린 문제가 없습니다. 잘하고 있어요! 👏', 'writing.empty': '해당 유형의 문제가 없습니다.',
@@ -101,6 +108,9 @@ const I18N = {
     'write.phWrite': '请在此作答（200字以内）', 'write.phOral': '请朗读作答。（也可记下要点 — 可选）',
     'result.frac': '选择题{0}题中答对{1}题', 'result.fracMore': ' · 写作·口试请在下方自行确认',
     'result.pass': '已达合格线（60分）🎉', 'result.fail': '距合格线（60分）还差一点！', 'result.practice': '这是练习模式的结果。',
+    'result.estLevel': '预计分配阶段：{0}',
+    'result.levelDisclaimer': '※ 此分数并非实际分配分数，而是 <b>按选择题水平的预估值</b>。实际事前评价为 选择题(75分)+写作(2题)+口试(25分)=100分，写作·口试由人工评分。另外 <b>口试不足3分将分配到0阶段</b>。准确阶段以考试当天分数为准。',
+    'track.nat': '🇰🇷 归化综合评价', 'track.pre': '📊 社会统合事前评价',
     'review.unanswered': '未作答', 'review.emptyWrite': '没有作答内容。', 'review.emptyOral': '没有记录内容。',
     'stats.total': '已做题数', 'stats.acc': '总正确率', 'stats.noHistory': '还没有模拟考试记录。',
     'wrong.empty': '没有错题，做得很好！👏', 'writing.empty': '没有该类型的题目。',
@@ -122,6 +132,88 @@ function t(key) {
 function catName(c) { return LANG === 'zh' && CAT_ZH[c] ? CAT_ZH[c] : c; }
 /* 한국어 본문 + (중국어 모드면) 중국어 보조를 함께 표시 */
 function bi(ko, zh) { return (LANG === 'zh' && zh) ? `${ko}<span class="zh">${zh}</span>` : (ko || ''); }
+/* 언어에 맞는 문자열 선택 ({ko, zh}) */
+function tx(o) { return (LANG === 'zh' && o && o.zh) ? o.zh : (o ? o.ko : ''); }
+
+/* =====================================================================
+   시험 트랙 (종합평가 / 사전평가)
+   - nat = 귀화용 종합평가(기존). pre = 사회통합 사전평가(레벨 배정).
+   - 문제는 q.exam === 'pre' 이면 사전평가, 아니면 종합평가로 간주.
+   ===================================================================== */
+let activeExam = 'nat';
+function examOf(q) { return q && q.exam === 'pre' ? 'pre' : 'nat'; }
+
+/* 사전평가 단계 배정 기준표 (공식: kiiptest.org·법무부 안내문, 검증 완료)
+   0단계는 점수 구간이 아니라 '구술 3점 미만'(필기 무관) — 객관식만으로는 판정 불가. */
+const PRE_LEVELS = [
+  { stage: 5, min: 81, max: 100, name: { ko: '5단계 · 한국사회이해', zh: '第5阶段 · 韩国社会理解' }, range: { ko: '81~100점', zh: '81~100分' } },
+  { stage: 4, min: 61, max: 80, name: { ko: '4단계 · 중급2', zh: '第4阶段 · 中级2' }, range: { ko: '61~80점', zh: '61~80分' } },
+  { stage: 3, min: 41, max: 60, name: { ko: '3단계 · 중급1', zh: '第3阶段 · 中级1' }, range: { ko: '41~60점', zh: '41~60分' } },
+  { stage: 2, min: 21, max: 40, name: { ko: '2단계 · 초급2', zh: '第2阶段 · 初级2' }, range: { ko: '21~40점', zh: '21~40分' } },
+  { stage: 1, min: 3, max: 20, name: { ko: '1단계 · 초급1', zh: '第1阶段 · 初级1' }, range: { ko: '3~20점', zh: '3~20分' } },
+  { stage: 0, min: 0, max: 2, name: { ko: '0단계 · 한국어기초', zh: '第0阶段 · 韩语基础' }, range: { ko: '구술 3점 미만', zh: '口试不足3分' } },
+];
+function preLevelFor(score) { return PRE_LEVELS.find((l) => score >= l.min) || PRE_LEVELS[PRE_LEVELS.length - 1]; }
+
+const EXAMS = {
+  nat: {
+    badge: { ko: '귀화 종합평가', zh: '归化综合评价' },
+    coverOrg: { ko: '사회통합프로그램 (KIIP)', zh: '社会统合项目 (KIIP)' },
+    coverTitle: { ko: '귀화용 종합평가', zh: '归化用综合评价' },
+    coverSub: { ko: '필기시험 모의고사', zh: '笔试模拟考试' },
+    mockSub: { ko: '실제 시험처럼 풀기 (객관식+작문+구술)', zh: '像真实考试一样作答（选择+写作+口试）' },
+    practiceSub: { ko: '8개 영역별로 풀기', zh: '按8个领域练习' },
+    noPrefix: 'KINAT',
+    mock: { mc: 36, writing: 4, oral: 5, time: 60 * 60, ladder: false },
+    grading: 'passfail',
+    notices: {
+      ko: [
+        '귀화용 종합평가는 <b>객관식 36문항(65점) + 작문형(10점) + 구술(25점) = 100점</b>, <b>60점 이상이면 합격</b>입니다.',
+        '이 모의고사는 <b>필기(객관식+작문)를 60분 안에</b> 풀고, 이어서 <b>구술 문항</b>까지 연습합니다.',
+        '객관식은 ①②③④ 중 하나를 고르고, 작문은 <b>200자 이내</b>로 작성합니다.',
+        '객관식만 자동 채점되며, 작문·구술은 모범답안·도움말로 스스로 점검합니다.',
+        '실제 시험의 구술은 별도 10분 세션입니다. 사회통합프로그램 5단계 수료 + 합격 시 <b>귀화 면접심사 면제</b>가 가능합니다.',
+      ],
+      zh: [
+        '归化用综合评价为 <b>选择题36题(65分) + 写作(10分) + 口试(25分) = 100分</b>，<b>60分以上合格</b>。',
+        '本模拟考试 <b>笔试(选择题+写作)在60分钟内</b>完成，随后继续练习<b>口试题</b>。',
+        '选择题从①②③④中选一个，写作在<b>200字以内</b>完成。',
+        '仅选择题自动评分；写作·口试以参考答案·提示自我检查。',
+        '真实考试的口试为单独的10分钟环节。修完社会统合项目第5阶段并合格时，<b>可免除归化面试</b>。',
+      ],
+    },
+  },
+  pre: {
+    badge: { ko: '사회통합 사전평가', zh: '社会统合事前评价' },
+    coverOrg: { ko: '사회통합프로그램 (KIIP)', zh: '社会统合项目 (KIIP)' },
+    coverTitle: { ko: '사회통합프로그램 사전평가', zh: '社会统合项目 事前评价' },
+    coverSub: { ko: '단계 배정 모의평가', zh: '级别分配模拟评价' },
+    mockSub: { ko: '실제 시험처럼 풀기 (객관식+작문+구술)', zh: '像真实考试一样作答（选择+写作+口试）' },
+    practiceSub: { ko: '어휘·문법·읽기·대화·문화·사회', zh: '词汇·语法·阅读·对话·文化·社会' },
+    noPrefix: 'KIIP',
+    mock: { mc: 48, writing: 2, oral: 5, time: 60 * 60, ladder: true },
+    grading: 'level',
+    notices: {
+      ko: [
+        '사회통합프로그램 <b>사전평가</b>는 합격·불합격 시험이 아니라, 점수에 따라 <b>0~5단계</b>를 배정하는 레벨 평가입니다.',
+        '실제 시험은 <b>필기 50문항(60분, 75점)</b> + <b>구술 5문항(10분, 25점)</b> = 100점입니다. 이 모의평가는 필기(객관식+작문)를 풀고 이어서 구술을 연습합니다.',
+        '객관식은 ①②③④ 중 하나를 고르고, 작문은 빈칸에 알맞은 표현을 짧게 씁니다.',
+        '객관식만 자동 채점되어 <b>예상 배정 단계</b>를 알려줍니다. 작문·구술은 모범답안으로 스스로 점검합니다.',
+        '실제로는 <b>구술 점수가 3점 미만이면 0단계</b>로 배정됩니다. 정확한 단계는 시험 당일 점수로 정해지며, 표시되는 단계는 <b>연습용 참고치</b>입니다.',
+      ],
+      zh: [
+        '社会统合项目 <b>事前评价</b>不是合格/不合格考试，而是根据分数分配 <b>0~5阶段</b>的级别测试。',
+        '真实考试为 <b>笔试50题(60分钟, 75分)</b> + <b>口试5题(10分钟, 25分)</b> = 100分。本模拟评价完成笔试(选择题+写作)后继续练习口试。',
+        '选择题从①②③④中选一个，写作在空格处简短填写恰当的表达。',
+        '仅选择题自动评分并给出 <b>预计分配阶段</b>；写作·口试以参考答案自我检查。',
+        '实际上 <b>口试不足3分则分配到0阶段</b>。准确阶段以考试当天分数为准，显示的阶段为 <b>练习参考值</b>。',
+      ],
+    },
+  },
+};
+function exam() { return EXAMS[activeExam]; }
+/* 시험별로 분리 저장할 키(종합평가=기존 키 그대로, 사전평가=__pre 접미사) */
+function ekey(base) { return activeExam === 'pre' ? base + '__pre' : base; }
 
 /* ---------- 상태 ---------- */
 let BANK = [];
@@ -140,8 +232,9 @@ function save(key, val) { try { localStorage.setItem(key, JSON.stringify(val)); 
 function shuffle(arr) { const a = arr.slice(); for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; }
 function toast(msg, ms = 2200) { const t0 = $('toast'); t0.textContent = msg; t0.classList.remove('hidden'); clearTimeout(toast._t); toast._t = setTimeout(() => t0.classList.add('hidden'), ms); }
 function fmtDate(iso) { if (!iso) return t('noSync'); const d = new Date(iso); const p = (n) => String(n).padStart(2, '0'); return `${d.getFullYear()}.${p(d.getMonth() + 1)}.${p(d.getDate())} ${p(d.getHours())}:${p(d.getMinutes())}`; }
-const mcOnly = () => BANK.filter((q) => q.type === 'mc');
-const byType = (ty) => BANK.filter((q) => q.type === ty);
+const examBank = () => BANK.filter((q) => examOf(q) === activeExam);
+const mcOnly = () => examBank().filter((q) => q.type === 'mc');
+const byType = (ty) => examBank().filter((q) => q.type === ty);
 
 /* =====================================================================
    초기화
@@ -152,8 +245,10 @@ function init() {
     navigator.serviceWorker.register('sw.js').then((reg) => { swReg = reg; }).catch(() => {});
   }
   LANG = ls(K.lang, 'ko');
+  activeExam = ls(K.exam, 'nat');
   loadBankFromStorageOrFallback();
   applyStaticI18n();
+  applyExamUi();
   wireEvents();
   showView('home');
   renderHome();
@@ -178,10 +273,32 @@ function applyStaticI18n() {
 function setLang(lang) {
   LANG = lang; save(K.lang, lang);
   applyStaticI18n();
+  applyExamUi();
   refreshView();
+}
+
+/* ---------- 시험 트랙 UI 반영 / 전환 ---------- */
+function applyExamUi() {
+  document.querySelectorAll('#trackSeg .seg__btn').forEach((b) => b.classList.toggle('seg__btn--active', b.dataset.exam === activeExam));
+  const titleEl = document.querySelector('.appbar__title');
+  if (titleEl) titleEl.textContent = tx(exam().badge);
+  const mockSub = document.querySelector('[data-go="mock"] .menu-card__sub');
+  if (mockSub) mockSub.textContent = tx(exam().mockSub);
+  const prSub = document.querySelector('[data-go="practice"] .menu-card__sub');
+  if (prSub) prSub.textContent = tx(exam().practiceSub);
+}
+function setExam(key) {
+  if (key === activeExam || !EXAMS[key]) return;
+  showView('home');        // 진행 중인 모의고사가 있으면 현재 트랙 키로 저장 후 타이머 정지
+  quiz = null; lastResult = null;
+  activeExam = key; save(K.exam, key);
+  applyExamUi();
+  renderHome();
+  toast(tx(exam().badge));
 }
 function refreshView() {
   if (currentView === 'home') renderHome();
+  else if (currentView === 'examintro') { renderExamIntro(); const s = getMockSave(); const btn = $('examResumeBtn'); if (s) btn.textContent = t('exam.resume', s.i + 1, s.list.length); }
   else if (currentView === 'practice') renderCategories();
   else if (currentView === 'quiz' && quiz) renderQuestion();
   else if (currentView === 'writing') renderWriting();
@@ -236,11 +353,11 @@ function showView(name) {
    홈
    ===================================================================== */
 function renderHome() {
-  const wrong = ls(K.wrong, []);
+  const wrong = ls(ekey(K.wrong), []);
   $('wrongCount').textContent = t('wrongCount', wrong.length);
   const mc = mcOnly().length;
   $('bankInfo').textContent = t('bankInfo', META.version, mc, fmtDate(META.syncedAt));
-  if (META.syncedAt) setSyncStatus(t('sync.ready', BANK.length, mc), false);
+  if (META.syncedAt) setSyncStatus(t('sync.ready', examBank().length, mc), false);
   else setSyncStatus(t('sync.never'), false);
 
   // 진행 중인 모의고사 이어풀기 배너
@@ -289,7 +406,7 @@ function startQuiz(questions, mode, resume) {
     text: resume ? (resume.text || {}) : {},
     graded: mode === 'practice' || mode === 'wrong',
     timer: null,
-    timeLeft: resume ? resume.timeLeft : 60 * 60,
+    timeLeft: resume ? resume.timeLeft : exam().mock.time,
   };
   showView('quiz');
   const isMock = mode === 'mock';
@@ -302,20 +419,20 @@ function startQuiz(questions, mode, resume) {
 }
 
 /* ---------- 모의고사 중간 저장 / 이어풀기 ---------- */
-function getMockSave() { const s = ls(K.mockSave, null); return (s && Array.isArray(s.list) && s.list.length) ? s : null; }
-function clearMockSave() { try { localStorage.removeItem(K.mockSave); } catch {} }
+function getMockSave() { const s = ls(ekey(K.mockSave), null); return (s && Array.isArray(s.list) && s.list.length) ? s : null; }
+function clearMockSave() { try { localStorage.removeItem(ekey(K.mockSave)); } catch {} }
 function saveMockProgress() {
   if (!quiz || quiz.mode !== 'mock') return;
-  save(K.mockSave, { list: quiz.list, i: quiz.i, answers: quiz.answers, text: quiz.text, timeLeft: quiz.timeLeft, savedAt: new Date().toISOString() });
+  save(ekey(K.mockSave), { list: quiz.list, i: quiz.i, answers: quiz.answers, text: quiz.text, timeLeft: quiz.timeLeft, savedAt: new Date().toISOString() });
 }
 
 /* ---------- 영역별 연습 중간 저장 / 이어풀기 ---------- */
-function getPracticeSave() { const s = ls(K.practiceSave, null); return (s && Array.isArray(s.list) && s.list.length) ? s : null; }
-function clearPracticeSave() { try { localStorage.removeItem(K.practiceSave); } catch {} }
+function getPracticeSave() { const s = ls(ekey(K.practiceSave), null); return (s && Array.isArray(s.list) && s.list.length) ? s : null; }
+function clearPracticeSave() { try { localStorage.removeItem(ekey(K.practiceSave)); } catch {} }
 function savePracticeProgress() {
   if (!quiz || quiz.mode !== 'practice') return;
   const cats = new Set(quiz.list.map((q) => q.category));
-  save(K.practiceSave, { list: quiz.list, i: quiz.i, answers: quiz.answers, label: cats.size === 1 ? [...cats][0] : null, savedAt: new Date().toISOString() });
+  save(ekey(K.practiceSave), { list: quiz.list, i: quiz.i, answers: quiz.answers, label: cats.size === 1 ? [...cats][0] : null, savedAt: new Date().toISOString() });
 }
 function resumePractice() {
   const s = getPracticeSave();
@@ -324,9 +441,21 @@ function resumePractice() {
   toast(t('toast.resumed'));
 }
 
+function renderExamIntro() {
+  const e = exam();
+  const org = document.querySelector('.exam-cover__org');
+  const title = document.querySelector('.exam-cover__title');
+  const sub = document.querySelector('.exam-cover__subtitle');
+  if (org) org.textContent = tx(e.coverOrg);
+  if (title) title.textContent = tx(e.coverTitle);
+  if (sub) sub.textContent = tx(e.coverSub);
+  const ol = $('examNoticeList');
+  if (ol) ol.innerHTML = e.notices[LANG === 'zh' ? 'zh' : 'ko'].map((n) => `<li>${n}</li>`).join('');
+}
 function showExamIntro() {
   if (!mcOnly().length) { toast(t('toast.noQ')); return; }
-  $('examNo').value = 'KINAT-' + String(Math.floor(1000 + Math.random() * 9000));
+  renderExamIntro();
+  $('examNo').value = exam().noPrefix + '-' + String(Math.floor(1000 + Math.random() * 9000));
   const s = getMockSave();
   const btn = $('examResumeBtn');
   if (s) { btn.textContent = t('exam.resume', s.i + 1, s.list.length); btn.classList.remove('hidden'); }
@@ -336,10 +465,24 @@ function showExamIntro() {
 function startMockExam() {
   if (getMockSave() && !confirm(t('confirm.discardMock'))) return;
   clearMockSave();
-  // 실제 시험 구성: 객관식 36 + 작문 4 + 구술 5 (각각 무작위)
-  const mc = shuffle(mcOnly()).slice(0, 36);
-  const wr = shuffle(byType('writing')).slice(0, 4);
-  const or = shuffle(byType('oral')).slice(0, 5);
+  const cfg = exam().mock;
+  let mc;
+  if (cfg.ladder) {
+    // 사전평가: 한국어 영역 80% + 문화·사회 20%, 번호↑=난이도↑(level 오름차순) 재현
+    const korCats = ['어휘', '문법', '읽기·이해', '대화'];
+    const all = mcOnly();
+    const kor = all.filter((q) => korCats.includes(q.category));
+    const cs = all.filter((q) => !korCats.includes(q.category));
+    const nCS = Math.min(cs.length, Math.round(cfg.mc * 0.2));
+    const nKor = cfg.mc - nCS;
+    const korPick = shuffle(kor).slice(0, nKor).sort((a, b) => (a.level || 2) - (b.level || 2));
+    const csPick = shuffle(cs).slice(0, nCS);
+    mc = korPick.concat(csPick); // 문화·사회를 뒤쪽(실제 41~48번처럼)
+  } else {
+    mc = shuffle(mcOnly()).slice(0, cfg.mc);
+  }
+  const wr = shuffle(byType('writing')).slice(0, cfg.writing);
+  const or = shuffle(byType('oral')).slice(0, cfg.oral);
   startQuiz(mc.concat(wr).concat(or), 'mock');
 }
 function resumeMock() {
@@ -477,9 +620,9 @@ function gradeMock() {
     if (quiz.answers[i] === null || !ok) addWrong(q.id); else removeWrong(q.id);
   });
   const pct = totalMc ? Math.floor((correct / totalMc) * 100) : 0;
-  const hist = ls(K.history, []);
+  const hist = ls(ekey(K.history), []);
   hist.unshift({ date: new Date().toISOString(), correct, total: totalMc, pct });
-  save(K.history, hist.slice(0, 30));
+  save(ekey(K.history), hist.slice(0, 30));
   document.body.classList.remove('exam-mode');
   renderResult(quiz.list, quiz.answers, correct, { isMock: true, totalMc });
 }
@@ -498,8 +641,18 @@ function renderResult(list, answers, correct, opts) {
   $('scoreFrac').textContent = t('result.frac', denom, correct) + (hasWriting ? t('result.fracMore') : '');
 
   const passEl = $('scorePass');
-  if (isMock) { const pass = pct >= 60; passEl.textContent = pass ? t('result.pass') : t('result.fail'); passEl.className = 'score-card__pass ' + (pass ? 'pass' : 'fail'); }
-  else { passEl.textContent = t('result.practice'); passEl.className = 'score-card__pass'; }
+  const levelBox = $('levelResult');
+  if (isMock && activeExam === 'pre') {
+    const lv = preLevelFor(pct);
+    passEl.textContent = t('result.estLevel', tx(lv.name));
+    passEl.className = 'score-card__pass level';
+    levelBox.innerHTML = renderLevelTable(lv);
+    levelBox.classList.remove('hidden');
+  } else {
+    levelBox.classList.add('hidden');
+    if (isMock) { const pass = pct >= 60; passEl.textContent = pass ? t('result.pass') : t('result.fail'); passEl.className = 'score-card__pass ' + (pass ? 'pass' : 'fail'); }
+    else { passEl.textContent = t('result.practice'); passEl.className = 'score-card__pass'; }
+  }
 
   const cat = {};
   list.forEach((q, i) => { if (q.type !== 'mc') return; cat[q.category] = cat[q.category] || { c: 0, t: 0 }; cat[q.category].t++; if (answers[i] === q.answer) cat[q.category].c++; });
@@ -518,6 +671,14 @@ function renderResult(list, answers, correct, opts) {
   const wrongQs = list.filter((q, i) => q.type === 'mc' && answers[i] !== q.answer);
   $('retryWrongBtn').classList.toggle('hidden', wrongQs.length === 0);
   $('retryWrongBtn').onclick = () => startQuiz(shuffle(wrongQs), 'practice');
+}
+
+function renderLevelTable(cur) {
+  const rows = PRE_LEVELS.slice().reverse().map((l) => {
+    const on = l.stage === cur.stage;
+    return `<div class="level-row${on ? ' is-on' : ''}"><span class="level-row__stage">${tx(l.name)}${on ? ' ◀' : ''}</span><span class="level-row__range">${tx(l.range)}</span></div>`;
+  }).join('');
+  return `<div class="level-note">${t('result.levelDisclaimer')}</div><div class="level-table">${rows}</div>`;
 }
 
 function reviewItem(q, chosen, writeText) {
@@ -549,11 +710,11 @@ function reviewItem(q, chosen, writeText) {
 /* =====================================================================
    오답노트
    ===================================================================== */
-function addWrong(id) { const w = ls(K.wrong, []); if (!w.includes(id)) { w.push(id); save(K.wrong, w); } }
-function removeWrong(id) { let w = ls(K.wrong, []); if (w.includes(id)) { w = w.filter((x) => x !== id); save(K.wrong, w); } }
+function addWrong(id) { const w = ls(ekey(K.wrong), []); if (!w.includes(id)) { w.push(id); save(ekey(K.wrong), w); } }
+function removeWrong(id) { let w = ls(ekey(K.wrong), []); if (w.includes(id)) { w = w.filter((x) => x !== id); save(ekey(K.wrong), w); } }
 function renderWrong() {
-  const ids = ls(K.wrong, []);
-  const list = ids.map((id) => BANK.find((q) => q.id === id)).filter(Boolean);
+  const ids = ls(ekey(K.wrong), []);
+  const list = ids.map((id) => BANK.find((q) => q.id === id)).filter((q) => q && examOf(q) === activeExam);
   $('startWrongBtn').classList.toggle('hidden', list.length === 0);
   const rl = $('wrongList'); rl.innerHTML = '';
   if (!list.length) { rl.innerHTML = `<div class="empty">${t('wrong.empty')}</div>`; return; }
@@ -565,7 +726,7 @@ function renderWrong() {
    ===================================================================== */
 function renderWriting() {
   const list = byType(writingType);
-  const drafts = ls(K.drafts, {});
+  const drafts = ls(ekey(K.drafts), {});
   const wrap = $('writingList'); wrap.innerHTML = '';
   if (!list.length) { wrap.innerHTML = `<div class="empty">${t('writing.empty')}</div>`; return; }
   list.forEach((q) => {
@@ -583,7 +744,7 @@ function renderWriting() {
     if (isWriting) {
       const ta = card.querySelector('textarea'); const cnt = card.querySelector('.writing-card__count');
       const upd = () => { const n = ta.value.length; cnt.textContent = t('count.char', n); cnt.classList.toggle('over', n > 200); };
-      ta.addEventListener('input', () => { upd(); const d = ls(K.drafts, {}); d[q.id] = ta.value; save(K.drafts, d); });
+      ta.addEventListener('input', () => { upd(); const d = ls(ekey(K.drafts), {}); d[q.id] = ta.value; save(ekey(K.drafts), d); });
       upd();
     }
     const tg = card.querySelector('.writing-card__guide-toggle'); const gd = card.querySelector('.writing-card__guide');
@@ -601,21 +762,21 @@ function renderWriting() {
    통계
    ===================================================================== */
 function recordAnswer(q, ok) {
-  const s = ls(K.stats, { total: 0, correct: 0, cat: {} });
+  const s = ls(ekey(K.stats), { total: 0, correct: 0, cat: {} });
   s.total++; if (ok) s.correct++;
   s.cat[q.category] = s.cat[q.category] || { t: 0, c: 0 };
   s.cat[q.category].t++; if (ok) s.cat[q.category].c++;
-  save(K.stats, s);
+  save(ekey(K.stats), s);
 }
 function renderStats() {
-  const s = ls(K.stats, { total: 0, correct: 0, cat: {} });
+  const s = ls(ekey(K.stats), { total: 0, correct: 0, cat: {} });
   const acc = s.total ? Math.round((s.correct / s.total) * 100) : 0;
   $('statsBox').innerHTML = `
     <div class="stat"><div class="stat__num">${s.total}</div><div class="stat__label">${t('stats.total')}</div></div>
     <div class="stat"><div class="stat__num">${acc}%</div><div class="stat__label">${t('stats.acc')}</div></div>`;
   let cat = '';
   Object.keys(s.cat).forEach((c) => { const { t: tt, c: cc } = s.cat[c]; const p = tt ? Math.round((cc / tt) * 100) : 0; cat += `<div class="cat-row"><span class="cat-row__name">${catName(c)}</span><span class="cat-row__bar"><span style="width:${p}%"></span></span><span class="cat-row__val">${p}%</span></div>`; });
-  const hist = ls(K.history, []);
+  const hist = ls(ekey(K.history), []);
   const hl = $('historyList');
   hl.innerHTML = cat ? `<div class="cat-breakdown" style="margin-bottom:18px">${cat}</div>` : '';
   if (!hist.length) { hl.insertAdjacentHTML('beforeend', `<div class="empty">${t('stats.noHistory')}</div>`); return; }
@@ -629,6 +790,7 @@ function wireEvents() {
   $('homeBtn').addEventListener('click', () => { showView('home'); renderHome(); });
   $('syncBtn').addEventListener('click', () => sync({ silent: false }));
   $('langBtn').addEventListener('click', () => setLang(LANG === 'zh' ? 'ko' : 'zh'));
+  document.querySelectorAll('#trackSeg .seg__btn').forEach((b) => b.addEventListener('click', () => setExam(b.dataset.exam)));
 
   document.querySelectorAll('[data-go]').forEach((el) => {
     el.addEventListener('click', () => {
@@ -653,9 +815,9 @@ function wireEvents() {
 
   $('writingSeg').querySelectorAll('.seg__btn').forEach((b) => { b.addEventListener('click', () => { writingType = b.dataset.wt; syncSeg(); renderWriting(); }); });
 
-  $('startWrongBtn').addEventListener('click', () => { const ids = ls(K.wrong, []); const list = ids.map((id) => BANK.find((q) => q.id === id)).filter(Boolean); startQuiz(shuffle(list), 'wrong'); });
-  $('clearWrongBtn').addEventListener('click', () => { if (confirm(t('confirm.clearWrong'))) { save(K.wrong, []); renderWrong(); toast(t('toast.clearedWrong')); } });
-  $('resetStatsBtn').addEventListener('click', () => { if (confirm(t('confirm.resetStats'))) { save(K.stats, { total: 0, correct: 0, cat: {} }); save(K.history, []); renderStats(); toast(t('toast.resetStats')); } });
+  $('startWrongBtn').addEventListener('click', () => { const ids = ls(ekey(K.wrong), []); const list = ids.map((id) => BANK.find((q) => q.id === id)).filter((q) => q && examOf(q) === activeExam); startQuiz(shuffle(list), 'wrong'); });
+  $('clearWrongBtn').addEventListener('click', () => { if (confirm(t('confirm.clearWrong'))) { save(ekey(K.wrong), []); renderWrong(); toast(t('toast.clearedWrong')); } });
+  $('resetStatsBtn').addEventListener('click', () => { if (confirm(t('confirm.resetStats'))) { save(ekey(K.stats), { total: 0, correct: 0, cat: {} }); save(ekey(K.history), []); renderStats(); toast(t('toast.resetStats')); } });
 }
 function syncSeg() { $('writingSeg').querySelectorAll('.seg__btn').forEach((b) => { b.classList.toggle('seg__btn--active', b.dataset.wt === writingType); }); }
 

@@ -33,6 +33,12 @@
 
     <!-- 홈 -->
     <section id="view-home" class="view">
+      <!-- 시험 트랙 전환: 귀화 종합평가 / 사회통합 사전평가 -->
+      <div class="seg track-seg" id="trackSeg">
+        <button class="seg__btn seg__btn--active" data-exam="nat" data-i18n="track.nat">🇰🇷 귀화 종합평가</button>
+        <button class="seg__btn" data-exam="pre" data-i18n="track.pre">📊 사회통합 사전평가</button>
+      </div>
+
       <div class="sync-status" id="syncStatus">문제를 불러오는 중…</div>
 
       <button id="resumeBanner" class="resume-banner hidden"></button>
@@ -88,13 +94,7 @@
         </div>
         <div class="exam-notice">
           <h3 data-i18n="exam.noticeTitle">유의사항</h3>
-          <ol>
-            <li data-i18n-html="exam.n1">귀화용 종합평가는 <b>객관식 36문항(65점) + 작문형(10점) + 구술(25점) = 100점</b>, <b>60점 이상이면 합격</b>입니다.</li>
-            <li data-i18n-html="exam.n2">이 모의고사는 <b>필기(객관식+작문)를 60분 안에</b> 풀고, 이어서 <b>구술 문항</b>까지 연습합니다.</li>
-            <li data-i18n-html="exam.n3">객관식은 ①②③④ 중 하나를 고르고, 작문은 <b>200자 이내</b>로 작성합니다.</li>
-            <li data-i18n-html="exam.n4">객관식만 자동 채점되며, 작문·구술은 모범답안·도움말로 스스로 점검합니다.</li>
-            <li data-i18n-html="exam.n5">실제 시험의 구술은 별도 10분 세션입니다. 사회통합프로그램 5단계 수료 + 합격 시 <b>귀화 면접심사 면제</b>가 가능합니다.</li>
-          </ol>
+          <ol id="examNoticeList"></ol>
         </div>
         <button class="btn resume-cover-btn hidden" id="examResumeBtn"></button>
         <div class="quiz-actions">
@@ -151,6 +151,7 @@
           <div id="scorePass" class="score-card__pass"></div>
         </div>
       </div>
+      <div id="levelResult" class="level-result hidden"></div>
       <div id="catBreakdown" class="cat-breakdown"></div>
       <h3 class="subhead" data-i18n="result.reviewHead">문제 다시보기</h3>
       <div id="reviewList" class="review-list"></div>

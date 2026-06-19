@@ -65,7 +65,6 @@ const I18N = {
     'result.estLevel': '예상 배정 단계: {0}',
     'result.levelDisclaimer': '※ 이 점수는 실제 배정 점수가 아니라 <b>객관식 실력 기준 예상치</b>입니다. 실제 사전평가는 객관식(75점)+작문(2문)+구술(25점)=100점이며, 작문·구술은 사람이 채점합니다. 또한 <b>구술이 3점 미만이면 0단계</b>로 배정됩니다. 정확한 단계는 시험 당일 점수로 정해집니다.',
     'track.nat': '🇰🇷 귀화 종합평가', 'track.perm': '🏡 영주 종합평가', 'track.pre': '📊 사회통합 사전평가',
-    'track.note': '🔁 이 앱은 귀화용·영주용 종합평가를 <b>같은 문제로 함께 대비</b>합니다(시험 구조·배점이 동일). 단, 출제 단계는 영주=기본과정·귀화=심화과정으로 차이가 있습니다.',
     'review.unanswered': '선택 안 함', 'review.emptyWrite': '작성한 답안이 없습니다.', 'review.emptyOral': '메모한 내용이 없습니다.',
     'stats.total': '총 푼 문제', 'stats.acc': '전체 정답률', 'stats.noHistory': '아직 모의고사 기록이 없습니다.',
     'wrong.empty': '틀린 문제가 없습니다. 잘하고 있어요! 👏', 'writing.empty': '해당 유형의 문제가 없습니다.',
@@ -112,7 +111,6 @@ const I18N = {
     'result.estLevel': '预计分配阶段：{0}',
     'result.levelDisclaimer': '※ 此分数并非实际分配分数，而是 <b>按选择题水平的预估值</b>。实际事前评价为 选择题(75分)+写作(2题)+口试(25分)=100分，写作·口试由人工评分。另外 <b>口试不足3分将分配到0阶段</b>。准确阶段以考试当天分数为准。',
     'track.nat': '🇰🇷 归化综合评价', 'track.perm': '🏡 永居综合评价', 'track.pre': '📊 社会统合事前评价',
-    'track.note': '🔁 本应用用<b>同一套题同时备考</b>归化用·永居用综合评价（考试结构·分值相同）。但出题阶段不同：永居=基本课程、归化=深化课程。',
     'review.unanswered': '未作答', 'review.emptyWrite': '没有作答内容。', 'review.emptyOral': '没有记录内容。',
     'stats.total': '已做题数', 'stats.acc': '总正确率', 'stats.noHistory': '还没有模拟考试记录。',
     'wrong.empty': '没有错题，做得很好！👏', 'writing.empty': '没有该类型的题目。',
@@ -197,14 +195,14 @@ const EXAMS = {
     grading: 'passfail',
     notices: {
       ko: [
-        '영주용 종합평가는 <b>객관식 36문항(65점) + 작문형(10점) + 구술(25점) = 100점</b>, <b>60점 이상이면 합격</b>입니다. (귀화용과 시험 구조·배점이 같아 같은 문제로 함께 대비합니다. 단, 영주용은 <b>기본과정</b> 기준이라 일부 심화 문항은 참고용입니다.)',
+        '영주용 종합평가는 <b>객관식 36문항(65점) + 작문형(10점) + 구술(25점) = 100점</b>, <b>60점 이상이면 합격</b>입니다.',
         '이 모의고사는 <b>필기(객관식+작문)를 60분 안에</b> 풀고, 이어서 <b>구술 문항</b>까지 연습합니다.',
         '객관식은 ①②③④ 중 하나를 고르고, 작문은 <b>200자 이내</b>로 작성합니다.',
         '객관식만 자동 채점되며, 작문·구술은 모범답안·도움말로 스스로 점검합니다.',
         '응시 자격: 사회통합프로그램 <b>5단계 기본과정 수료</b>(또는 사전평가로 5단계 배정). 영주용은 <b>지필(PBT)로만</b> 시행됩니다.',
       ],
       zh: [
-        '永居用综合评价为 <b>选择题36题(65分) + 写作(10分) + 口试(25分) = 100分</b>，<b>60分以上合格</b>。（与归化用考试结构·分值相同，本应用用同一套题一起备考。但永居用以 <b>基本课程</b> 为准，部分深化题仅供参考。）',
+        '永居用综合评价为 <b>选择题36题(65分) + 写作(10分) + 口试(25分) = 100分</b>，<b>60分以上合格</b>。',
         '本模拟考试 <b>笔试(选择题+写作)在60分钟内</b>完成，随后继续练习<b>口试题</b>。',
         '选择题从①②③④中选一个，写作在<b>200字以内</b>完成。',
         '仅选择题自动评分；写作·口试以参考答案·提示自我检查。',
@@ -261,9 +259,11 @@ function save(key, val) { try { localStorage.setItem(key, JSON.stringify(val)); 
 function shuffle(arr) { const a = arr.slice(); for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; }
 function toast(msg, ms = 2200) { const t0 = $('toast'); t0.textContent = msg; t0.classList.remove('hidden'); clearTimeout(toast._t); toast._t = setTimeout(() => t0.classList.add('hidden'), ms); }
 function fmtDate(iso) { if (!iso) return t('noSync'); const d = new Date(iso); const p = (n) => String(n).padStart(2, '0'); return `${d.getFullYear()}.${p(d.getMonth() + 1)}.${p(d.getDate())} ${p(d.getHours())}:${p(d.getMinutes())}`; }
-/* 영주용(perm)은 귀화용(nat)과 같은 '종합평가' 문제 풀을 사용 */
+/* 트랙별 문제 풀: 영주용(perm)도 귀화용(nat)과 같은 종합평가 풀을 쓰되,
+   심화(tier:advanced) 문항은 귀화용에만 포함(영주=기본과정, 귀화=기본+심화). */
 const poolOf = (ex) => (ex === 'pre' ? 'pre' : 'nat');
-const examBank = () => BANK.filter((q) => examOf(q) === poolOf(activeExam));
+function inExam(q) { return examOf(q) === poolOf(activeExam) && !(activeExam === 'perm' && q.tier === 'advanced'); }
+const examBank = () => BANK.filter(inExam);
 const mcOnly = () => examBank().filter((q) => q.type === 'mc');
 const byType = (ty) => examBank().filter((q) => q.type === ty);
 
@@ -317,13 +317,6 @@ function applyExamUi() {
   if (mockSub) mockSub.textContent = tx(exam().mockSub);
   const prSub = document.querySelector('[data-go="practice"] .menu-card__sub');
   if (prSub) prSub.textContent = tx(exam().practiceSub);
-  // 귀화·영주는 같은 종합평가 문제를 공유 → 오해 방지 공지
-  const note = $('trackNote');
-  if (note) {
-    const shared = poolOf(activeExam) === 'nat';
-    note.classList.toggle('hidden', !shared);
-    if (shared) note.innerHTML = t('track.note');
-  }
 }
 function setExam(key) {
   if (key === activeExam || !EXAMS[key]) return;
@@ -752,7 +745,7 @@ function addWrong(id) { const w = ls(ekey(K.wrong), []); if (!w.includes(id)) { 
 function removeWrong(id) { let w = ls(ekey(K.wrong), []); if (w.includes(id)) { w = w.filter((x) => x !== id); save(ekey(K.wrong), w); } }
 function renderWrong() {
   const ids = ls(ekey(K.wrong), []);
-  const list = ids.map((id) => BANK.find((q) => q.id === id)).filter((q) => q && examOf(q) === activeExam);
+  const list = ids.map((id) => BANK.find((q) => q.id === id)).filter((q) => q && inExam(q));
   $('startWrongBtn').classList.toggle('hidden', list.length === 0);
   const rl = $('wrongList'); rl.innerHTML = '';
   if (!list.length) { rl.innerHTML = `<div class="empty">${t('wrong.empty')}</div>`; return; }
@@ -853,7 +846,7 @@ function wireEvents() {
 
   $('writingSeg').querySelectorAll('.seg__btn').forEach((b) => { b.addEventListener('click', () => { writingType = b.dataset.wt; syncSeg(); renderWriting(); }); });
 
-  $('startWrongBtn').addEventListener('click', () => { const ids = ls(ekey(K.wrong), []); const list = ids.map((id) => BANK.find((q) => q.id === id)).filter((q) => q && examOf(q) === activeExam); startQuiz(shuffle(list), 'wrong'); });
+  $('startWrongBtn').addEventListener('click', () => { const ids = ls(ekey(K.wrong), []); const list = ids.map((id) => BANK.find((q) => q.id === id)).filter((q) => q && inExam(q)); startQuiz(shuffle(list), 'wrong'); });
   $('clearWrongBtn').addEventListener('click', () => { if (confirm(t('confirm.clearWrong'))) { save(ekey(K.wrong), []); renderWrong(); toast(t('toast.clearedWrong')); } });
   $('resetStatsBtn').addEventListener('click', () => { if (confirm(t('confirm.resetStats'))) { save(ekey(K.stats), { total: 0, correct: 0, cat: {} }); save(ekey(K.history), []); renderStats(); toast(t('toast.resetStats')); } });
 }

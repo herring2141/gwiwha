@@ -238,7 +238,7 @@
   // ===== 상태 =====
   var state = null;
   var timerId = null;
-  var soundOn = (localStorage.getItem('typing_sound') === '1');
+  var soundOn = (localStorage.getItem('typing_sound') !== '0'); // 기본 켜짐 — 사용자가 끈 적 있을 때만 꺼짐
 
   // ===== 발음(소리) — 자음은 +ㅡ(므·느), 모음은 ㅇ+(아·어). 검증된 조합 오토마타 재사용 =====
   function jamoToSyllable(j) {

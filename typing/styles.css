@@ -119,7 +119,7 @@ html, body {
 
 /* 텍스트(낱글자/단문/장문) */
 /* 줄 단위: 원문 한 줄 + 바로 아래 입력 줄(워드프로세서식) */
-.txt-lines { display: flex; flex-direction: column; }
+.txt-lines { display: flex; flex-direction: column; max-height: 17rem; overflow: hidden; position: relative; }
 .tline { margin-bottom: 10px; }
 .tline-target { font-size: 1.4rem; line-height: 1.7; word-break: keep-all; }
 .tline-echo { font-size: 1.4rem; line-height: 1.7; min-height: 1.5em; color: var(--ink); word-break: keep-all; border-bottom: 1px dashed var(--line); padding: 1px 0 4px; }
@@ -129,6 +129,8 @@ html, body {
 .tline-target .ch.current { background: var(--blue); color: #fff; }
 .tline-target .ch.pending { color: #94a3b8; }
 .tline-target .ch.sp { white-space: pre; }
+.tline-echo .ech.bad { color: var(--red); background: var(--red-soft); border-radius: 3px; }
+.tline-echo .ech.sp { white-space: pre; }
 .tline-echo .caret { display: inline-block; width: 2px; height: 1.05em; background: var(--blue); vertical-align: -2px; animation: blink 1s step-end infinite; }
 @keyframes blink { 50% { opacity: 0; } }
 
@@ -215,6 +217,7 @@ html, body {
   .key__lat { display: none; }
   .tline-target { font-size: 1.2rem; line-height: 1.6; }
   .tline-echo { font-size: 1.2rem; line-height: 1.6; }
+  .txt-lines { max-height: 13rem; }
   /* 자리연습 큐: 화면 밖으로 안 넘치게 셀 축소 */
   .pos-queue { gap: 7px; }
   .pos-cell { width: 34px; height: 48px; font-size: 1.35rem; }

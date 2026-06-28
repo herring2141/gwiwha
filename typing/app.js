@@ -317,6 +317,7 @@
       s.chars = HG.sanitize(txt).split('');
       s.lines = wrapLines(s.chars);
       s.pos = 0;
+      s.typed = [];   // 실제로 친 자모/문자 토큰(오답 포함) — 백스페이스로 되돌림
       s.total = s.tokens.length;
     }
     return s;
@@ -425,26 +426,54 @@
     }
   }
 
+  // (code, shift) -> 실제로 나오는 입력 토큰
+  function producedToken(code, shift) {
+    if (code === 'Space') return { type: 'space' };
+    if (code === 'Enter') return { type: 'enter' };
+    var j = HG.producedJamo(code, shift); if (j) return { type: 'jamo', jamo: j };
+    var ch = HG.producedLiteral(code, shift); if (ch != null) return { type: 'literal', ch: ch };
+    return null;
+  }
+  function tokenMatch(exp, p) {
+    if (!exp || !p || exp.type !== p.type) return false;
+    if (p.type === 'jamo') return exp.jamo === p.jamo;
+    if (p.type === 'literal') return exp.ch === p.ch;
+    return true; // space/enter
+  }
+
   function handleInput(code, shift) {
     if (!state || state.finished || ($('#view-practice').classList.contains('hidden'))) return false;
     var exp = currentExpected();
     if (!exp) return false;
     startTimerIfNeeded();
-    var ok = state.kind === 'position' ? (HG.producedJamo(code, shift) === exp.jamo) : HG.matches(exp.tok, code, shift);
-    if (ok) {
-      if (state.kind === 'position') state.posIdx++; else state.pos++;
-      state.correct++;
-      if (soundOn && (state.mode === 'position' || state.mode === 'syllable') && exp.jamo) speakJamo(exp.jamo);
-      flashKey(code, 'pressed');
-      render();
-      updateStats();
-      if (progressCount() >= state.total) finish();
-    } else {
-      state.errors++;
-      flashKey(code, 'miss');
-      var ek = exp.key; if (ek && keyEls[ek.code]) { keyEls[ek.code].classList.add('miss'); setTimeout(function (e) { e.classList.remove('miss'); }, 300, keyEls[ek.code]); }
-      updateStats();
+
+    if (state.kind === 'position') {
+      // 자리 연습: 키 위치 찾기 드릴 — 맞아야 다음으로
+      var okP = HG.producedJamo(code, shift) === exp.jamo;
+      if (okP) {
+        state.posIdx++; state.correct++;
+        if (soundOn) speakJamo(exp.jamo);
+        flashKey(code, 'pressed'); render(); updateStats();
+        if (progressCount() >= state.total) finish();
+      } else {
+        state.errors++; flashKey(code, 'miss');
+        var ek = exp.key; if (ek && keyEls[ek.code]) { keyEls[ek.code].classList.add('miss'); setTimeout(function (e) { e.classList.remove('miss'); }, 300, keyEls[ek.code]); }
+        updateStats();
+      }
+      return true;
     }
+
+    // 텍스트 모드: 실제 타자 연습 — 오답도 입력되어 보이고(빨강), 백스페이스로 고침
+    var produced = producedToken(code, shift);
+    if (!produced) return false;
+    var matched = tokenMatch(exp, produced);
+    state.typed.push(produced);
+    state.pos++;
+    if (matched) { state.correct++; flashKey(code, 'pressed'); }
+    else { state.errors++; flashKey(code, 'miss'); }
+    if (soundOn && state.mode === 'syllable' && produced.type === 'jamo') speakJamo(produced.jamo);
+    render(); updateStats();
+    if (state.pos >= state.total) finish();
     return true;
   }
 
@@ -453,7 +482,7 @@
   function backspace() {
     if (!state || state.finished) return;
     if (state.kind === 'position') { if (state.posIdx > 0) state.posIdx--; }
-    else { if (state.pos > 0) state.pos--; }
+    else { if (state.pos > 0) { state.pos--; state.typed.pop(); } }
     render(); updateStats();
   }
 
@@ -526,13 +555,12 @@
   }
 
   function renderText(box) {
-    var chars = state.chars, toks = state.tokens, pos = state.pos, lines = state.lines;
+    var chars = state.chars, toks = state.tokens, pos = state.pos, lines = state.lines, typed = state.typed || [];
     var currentCi = pos < toks.length ? toks[pos].ci : chars.length;
-    var typedToks = toks.slice(0, pos);
     var html = '<div class="txt-lines">';
     for (var li = 0; li < lines.length; li++) {
       var ln = lines[li];
-      // 원문 줄
+      // 원문(목표) 줄
       var tHtml = '';
       for (var c = ln.start; c < ln.end; c++) {
         var ch = chars[c];
@@ -540,17 +568,29 @@
         if (ch === ' ') tHtml += (c === currentCi) ? '<span class="ch current sp"> </span>' : '<span class="ch sp"> </span>';
         else tHtml += '<span class="ch ' + st + '">' + esc(ch) + '</span>';
       }
-      // 입력 줄(이 줄에 속한, 이미 친 토큰만 조합)
-      var lineToks = typedToks.filter(function (tk) { return tk.ci >= ln.start && tk.ci < ln.end; });
-      var typed = HG.compose(lineToks);
+      // 입력(내가 친) 줄 — 실제 친 자모를 조합, 목표와 글자별 비교해 정(검정)/오(빨강)
+      var lineTypedToks = [];
+      for (var ti = 0; ti < typed.length; ti++) { if (toks[ti] && toks[ti].ci >= ln.start && toks[ti].ci < ln.end) lineTypedToks.push(typed[ti]); }
+      var typedStr = HG.compose(lineTypedToks);
+      var targetStr = chars.slice(ln.start, ln.end).join('');
+      var eHtml = '';
+      for (var ei = 0; ei < typedStr.length; ei++) {
+        var cc = typedStr.charAt(ei);
+        var good = cc === targetStr.charAt(ei);
+        eHtml += '<span class="ech ' + (good ? 'ok' : 'bad') + (cc === ' ' ? ' sp' : '') + '">' + esc(cc) + '</span>';
+      }
       var isCurrentLine = currentCi >= ln.start && currentCi <= ln.end;
       html += '<div class="tline' + (isCurrentLine ? ' is-current' : '') + '">' +
         '<div class="tline-target">' + tHtml + '</div>' +
-        '<div class="tline-echo">' + esc(typed) + (isCurrentLine ? '<span class="caret"></span>' : '') + '</div>' +
+        '<div class="tline-echo">' + eHtml + (isCurrentLine ? '<span class="caret"></span>' : '') + '</div>' +
         '</div>';
     }
     html += '</div>';
     box.innerHTML = html;
+    // 현재 줄을 창 맨 위로 — 위 ~3줄만 보이고, 진행하면 아래 내용이 자동으로 올라옴
+    var curLine = box.querySelector('.tline.is-current');
+    var wrap = box.querySelector('.txt-lines');
+    if (curLine && wrap) wrap.scrollTop = curLine.offsetTop;
   }
 
   function renderNextKey() {
